@@ -7,6 +7,8 @@ return [
 
     'target_locales' => [],
 
+    'skip_php_translations' => false,
+
     /*
     |--------------------------------------------------------------------------
     | Directories to scan for Gettext strings

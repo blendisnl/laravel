@@ -24,6 +24,8 @@ class TranslationExtractor
      */
     private $translator;
 
+    private $config;
+
     public function __construct(
         Application $application,
         FileSystem $fileSystem,
@@ -33,10 +35,15 @@ class TranslationExtractor
         $this->application = $application;
         $this->fileSystem = $fileSystem;
         $this->translator = $translator;
+        $this->config = $application['config']['translation'];
     }
 
     public function call($locale)
     {
+        if (isset($this->config['skip_php_translations']) && $this->config['skip_php_translations']) {
+            return [];
+        }
+
         $path = $this->localePath($locale);
 
         if ( ! $this->fileSystem->exists($path)) {
