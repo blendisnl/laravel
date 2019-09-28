@@ -7,6 +7,7 @@ use Carbon\Carbon;
 use GuzzleHttp\Client;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Filesystem\Filesystem;
+use Illuminate\Support\Str;
 
 class SourceEditSyncException extends \Exception {};
 
@@ -61,7 +62,7 @@ class SourceEditSync
 
         $formData = [
             'client' => 'laravel',
-            'version' => '1.6',
+            'version' => '1.8',
             'timestamp' => $this->metadataTimestamp(),
             'source_language' => $locale
         ];
@@ -137,7 +138,7 @@ class SourceEditSync
 
     private function throwErrorIfConflictInMetadata($metadataContent)
     {
-      if (str_contains($metadataContent, ['>>>>', '<<<<'])) {
+      if (Str::contains($metadataContent, ['>>>>', '<<<<'])) {
           $metadataFilePath = $this->metadataFilePath();
           throw new SourceEditSyncException($metadataFilePath . " file is corrupted and seems to have unresolved versioning conflicts. Please resolve them and try again.");
       }

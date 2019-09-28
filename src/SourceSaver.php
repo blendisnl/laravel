@@ -5,6 +5,7 @@ namespace Tio\Laravel;
 use Tio\Laravel\PrettyVarExport;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Filesystem\Filesystem;
+use Illuminate\Support\Str;
 
 class SourceSaver
 {
@@ -40,7 +41,7 @@ class SourceSaver
 
         // Adapt $group and $dir if the key contains subfolders:
         // https://laravel.io/forum/02-23-2015-localization-load-files-from-subdirectories-at-resourceslanglocale)
-        if (str_contains($key, '/')) {
+        if (Str::contains($key, '/')) {
             $subFolders = explode('/', $key);
             array_pop($subFolders);
             $dir = join(DIRECTORY_SEPARATOR, array_merge([$dir], $subFolders));
@@ -84,7 +85,7 @@ EOT;
     {
         $foldersAndGroup = explode('.', $key)[0];
 
-        if (str_contains($foldersAndGroup, '/')) {
+        if (Str::contains($foldersAndGroup, '/')) {
             $parts = explode('/', $foldersAndGroup);
             return array_pop($parts);
         }
@@ -113,7 +114,7 @@ EOT;
             $current = &$current[$key];
         }
 
-        if ($current[$keys[count($keys) - 1]] == $oldText) {
+        if (isset($current[$keys[count($keys) - 1]]) && $current[$keys[count($keys) - 1]] == $oldText) {
             $current[$keys[count($keys) - 1]] = $newText;
         }
 

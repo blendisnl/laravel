@@ -7,7 +7,6 @@ use Tio\Laravel\GettextPOGenerator;
 use Tio\Laravel\SourcePOGenerator;
 use Tio\Laravel\TranslationSaver;
 use Tio\Laravel\GettextTranslationSaver;
-use Carbon\Carbon;
 use GuzzleHttp\Client;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Support\Facades\Log;
@@ -94,7 +93,7 @@ class Sync
 
         $formData = [
             'client' => 'laravel',
-            'version' => '1.6',
+            'version' => '1.8',
             'source_language' => $locale
         ];
 
