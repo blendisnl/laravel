@@ -11,7 +11,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Directories to scan for Gettext strings
+    | # Ignored PHP key prefixes.
+    |--------------------------------------------------------------------------
+    |
+    | Ex: * 'validation':        ignore the whole validation.php file.
+    |     * 'validation.custom': ignore the "custom" subtree in validation.php file.
+    |     * 'subfolder/more':    ignore the whole subfolder/more.php file.
+    |
+    */
+    'ignored_key_prefixes' => [],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Directories to scan for Gettext strings.
     |--------------------------------------------------------------------------
     |
     */
@@ -19,7 +31,7 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Where the Gettext translations are stored
+    | Where the Gettext translations are stored.
     |--------------------------------------------------------------------------
     |
     \ PO file is here: $gettext_locales_path/xx_XX/app.po
