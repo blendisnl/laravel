@@ -1,5 +1,68 @@
 # Changelog
 
+## [v1.19](https://github.com/translation/laravel/releases/tag/v1.19) (2022-05-12)
+
+#### Fixes (bugs & defects):
+
+ * Better code standards for generated PHP files ([#31](https://github.com/translation/laravel/pull/31)).
+
+## [v1.18](https://github.com/translation/laravel/releases/tag/v1.18) (2022-03-29)
+
+#### Fixes (bugs & defects):
+
+ * Better support for Laravel 9 new default `lang` path (instead of previously `resources/lang` path).
+
+## [v1.17](https://github.com/translation/laravel/releases/tag/v1.17) (2022-02-18)
+
+#### New features:
+
+ * Support for Laravel 9
+
+## [v1.16](https://github.com/translation/laravel/releases/tag/v1.16) (2021-04-23)
+
+**This package no longer support Laravel versions smaller than 5.5**
+
+#### New features:
+
+ * Support for multiple JSON paths. See [here](https://github.com/translation/laravel#laravel-localization-json-source-text) to add them (cf. [#24](https://github.com/translation/laravel/issues/24) and [PR #25](https://github.com/translation/laravel/pull/25)), thanks @inxilpro.
+ * Ignore untranslated keys when syncing and creating JSON files on disk (same behavior).
+
+## [v1.15](https://github.com/translation/laravel/releases/tag/v1.15) (2021-04-06)
+
+#### Fixes (bugs & defects):
+
+ * Better error management for errors like "SSL certificate problem" that don't have any response body.
+
+## [v1.14](https://github.com/translation/laravel/releases/tag/v1.14) (2021-03-11)
+
+#### Fixes (bugs & defects):
+
+ * Bump `gettext/gettext` dependency to fix PHP 8 compatibility (cf. [#22](https://github.com/translation/laravel/issues/22) and [https://github.com/php-gettext/Gettext/pull/266](https://github.com/php-gettext/Gettext/pull/266))
+
+## [v1.13](https://github.com/translation/laravel/releases/tag/v1.13) (2020-11-19)
+
+#### Fixes (bugs & defects):
+
+ * Bump `gettext/gettext` dependency to fix GetText parsing with Blade Component Tags (cf. [#17](https://github.com/translation/laravel/issues/17) and [https://github.com/php-gettext/Gettext/pull/261](https://github.com/php-gettext/Gettext/pull/261))
+
+## [v1.12](https://github.com/translation/laravel/releases/tag/v1.12) (2020-09-14)
+
+#### Fixes (bugs & defects):
+
+ * Relax Guzzle dependency to work with Laravel 8
+
+## [v1.11](https://github.com/translation/laravel/releases/tag/v1.11) (2020-09-14)
+
+#### New features:
+
+ * Compatibility with Laravel 8
+
+## [v1.10](https://github.com/translation/laravel/releases/tag/v1.10) (2020-04-27)
+
+#### New features:
+
+ * Compatibility with Laravel 7 and PHP 7.4
+
 ## [v1.9](https://github.com/translation/laravel/releases/tag/v1.9) (2019-10-09)
 
 #### New features:

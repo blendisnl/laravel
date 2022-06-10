@@ -3,7 +3,10 @@
 namespace Tio\Laravel;
 
 use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Contracts\Translation\Translator as TranslatorContract;
 use Illuminate\Filesystem\Filesystem;
+use Illuminate\Translation\FileLoader;
+use Illuminate\Translation\Translator;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use Gettext\Extractors;
@@ -17,17 +20,24 @@ class GettextPOGenerator
      * @var Application
      */
     private $application;
+
     /**
-     * @var FileSystem
+     * @var Filesystem
      */
     private $filesystem;
 
+    /**
+     * @var TranslatorContract
+     */
+    private $translator;
+
     private $config;
 
-    public function __construct(Application $application, FileSystem $filesystem)
+    public function __construct(Application $application, Filesystem $filesystem, TranslatorContract $translator)
     {
         $this->application = $application;
         $this->filesystem = $filesystem;
+        $this->translator = $translator;
         $this->config = $application['config']['translation'];
     }
 
@@ -48,8 +58,8 @@ class GettextPOGenerator
 
         // Extract GetText strings from project
         foreach ($directories as $dir) {
-            if (!is_dir($dir)) {
-                throw new \Exception('Folder "' . $dir . '" doest not exists. Gettext scan aborted.');
+            if ( ! is_dir($dir)) {
+                throw new \Exception('Folder "' . $dir . '" does not exist. Gettext scan aborted.');
             }
 
             foreach ($this->scanDir($dir) as $file) {
@@ -115,7 +125,7 @@ class GettextPOGenerator
         foreach ($iterator as $fileinfo) {
             $name = $fileinfo->getPathname();
 
-            if (!strpos($name, '/.')) {
+            if ( ! strpos($name, '/.')) {
                 $files[] = $name;
             }
         }
@@ -136,14 +146,12 @@ class GettextPOGenerator
     private function gettextLocalesPath()
     {
         if (array_key_exists('gettext_locales_path', $this->config)) {
-            $gettextLocalesPath = $this->config['gettext_locales_path'];
+            return base_path($this->config['gettext_locales_path']);
         }
         else {
             // Default values if not present in config file
-            $gettextLocalesPath = 'resources/lang/gettext';
+            return $this->application['path.lang'] . DIRECTORY_SEPARATOR . 'gettext';
         }
-
-        return base_path($gettextLocalesPath);
     }
 
     private function gettextParsePaths()
@@ -161,16 +169,38 @@ class GettextPOGenerator
     {
         $files = [];
 
-        foreach (glob($this->application['path.lang'] . DIRECTORY_SEPARATOR . '*.json') as $filename) {
-            $files[] = $filename;
+        foreach ($this->jsonPaths() as $path) {
+            foreach (glob( $path . DIRECTORY_SEPARATOR . '*.json') as $filename) {
+                $files[] = $filename;
+            }
         }
 
         return $files;
     }
 
-    private function path()
+    private function jsonPaths()
     {
-        return $this->application['path.lang'];
+        $paths = [$this->application['path.lang']];
+
+        // The Translator interface doesn't require the use of 'loaders' so we'll
+        // check to make sure we have a Laravel Translator instance to be safe
+        if ($this->translator instanceof Translator) {
+            $loader = $this->translator->getLoader();
+
+            if ($loader instanceof FileLoader) {
+                // $loader->jsonPaths() getter doesn't exist before Laravel 8 so we use this trick to access the protected value.
+                // cf. https://stackoverflow.com/a/3475714/1243212
+                $rp = new \ReflectionProperty('Illuminate\Translation\FileLoader', 'jsonPaths');
+                $rp->setAccessible(true);
+                $jsonPaths = $rp->getValue($loader);
+
+                foreach ($jsonPaths as $path) {
+                    $paths[] = $path;
+                }
+            }
+        }
+
+        return $paths;
     }
 
     private function addStringsFromJsonFiles($translations)
@@ -180,18 +210,16 @@ class GettextPOGenerator
         // Load each JSON file to get source strings
         foreach ($this->JsonFiles() as $jsonFile) {
             $jsonTranslations = json_decode(file_get_contents($jsonFile), true);
+            $jsonPath = dirname($jsonFile);
 
             foreach ($jsonTranslations as $key => $value) {
-                $sourceStrings[] = $key;
+                $sourceStrings[$key] = $jsonPath;
             }
         }
 
-        // Deduplicate them (in a perfect world, each JSON locale file must have the same sources)
-        $sourceStrings = array_unique($sourceStrings);
-
         // Insert them in $translations with a special context
-        foreach ($sourceStrings as $sourceString) {
-            $translations->insert($this->jsonStringContext(), $sourceString, '');
+        foreach ($sourceStrings as $sourceString => $jsonPath) {
+            $translations->insert($this->jsonStringContext($jsonPath), $sourceString, '');
         }
     }
 
@@ -211,7 +239,7 @@ class GettextPOGenerator
     private function mergeWithExistingTargetPoFile($translations, $target)
     {
         $gettextPath = $this->gettextLocalesPath();
-        $poPath      = $gettextPath . DIRECTORY_SEPARATOR . $target . DIRECTORY_SEPARATOR . 'app.po';
+        $poPath = $gettextPath . DIRECTORY_SEPARATOR . $target . DIRECTORY_SEPARATOR . 'app.po';
 
         if ($this->filesystem->exists($poPath)) {
             $existingTargetTranslations = Translations::fromPoFile($poPath);
@@ -231,30 +259,45 @@ class GettextPOGenerator
         $targetTranslations = new Translations();
         $targetTranslations->setLanguage($target);
 
-        $targetJsonFile = $this->application['path.lang'] . DIRECTORY_SEPARATOR . $target . '.json';
+        $jsonFiles = collect($this->jsonFiles());
 
-        if ($this->filesystem->exists($targetJsonFile)) {
-            $targetJsonTranslations = json_decode(file_get_contents($targetJsonFile), true);
+        $targetJsonFiles = $jsonFiles->filter(function ($jsonFile) use ($target) {
+            return $this->endsWith($jsonFile, $target . '.json');
+        });
 
-            foreach ($targetJsonTranslations as $key => $value) {
-                $translation = new Translation($this->jsonStringContext(), $key, '');
-                $translation->setTranslation($value);
-                $targetTranslations[] = $translation;
+        foreach ($targetJsonFiles as $targetJsonFile) {
+            if ($this->filesystem->exists($targetJsonFile)) {
+                $targetJsonTranslations = json_decode(file_get_contents($targetJsonFile), true);
+
+                foreach ($targetJsonTranslations as $key => $value) {
+                    $jsonPath = dirname($targetJsonFile);
+                    $translation = new Translation($this->jsonStringContext($jsonPath), $key, '');
+                    $translation->setTranslation($value);
+                    $targetTranslations[] = $translation;
+                }
+
+                $translations->mergeWith(
+                    $targetTranslations,
+                    Merge::ADD || Merge::HEADERS_ADD || Merge::COMMENTS_OURS ||
+                    Merge::EXTRACTED_COMMENTS_OURS || Merge::FLAGS_OURS || Merge::REFERENCES_OURS
+                );
             }
-
-            $translations->mergeWith(
-                $targetTranslations,
-                Merge::ADD || Merge::HEADERS_ADD || Merge::COMMENTS_OURS ||
-                Merge::EXTRACTED_COMMENTS_OURS || Merge::FLAGS_OURS || Merge::REFERENCES_OURS
-            );
         }
 
         return $translations;
     }
 
-    private function jsonStringContext()
+    private function jsonStringContext($path)
     {
-        return 'Extracted from JSON file';
+        if ($path == $this->application['path.lang']) {
+            // Default JSON path
+            return 'Extracted from JSON file';
+        }
+        else {
+            // Custom JSON path (added with `$loader->addJsonPath()`)
+            $relativePath = substr($path, strpos($path, $this->application->basePath() . '/') + strlen($this->application->basePath()) + 1 );
+            return 'Extracted from JSON file [' . $relativePath . ']';
+        }
     }
 
     private function appName()
@@ -266,5 +309,11 @@ class GettextPOGenerator
         }
 
         return $appName;
+    }
+
+    # Because "Str::endsWith()" is only Laravel 5.7+
+    # https://stackoverflow.com/a/10473026/1243212
+    function endsWith($haystack, $needle) {
+        return substr_compare($haystack, $needle, -strlen($needle)) === 0;
     }
 }

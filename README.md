@@ -1,11 +1,13 @@
-# [Translation.io](https://translation.io/laravel) client for Laravel 5/6
+# [Translation.io](https://translation.io/laravel) client for Laravel 5.5+ to 9.x
 
-[![Software License](https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat-square)](LICENSE.md)
-[![Build Status](https://img.shields.io/travis/translation/laravel/master.svg?style=flat-square)](https://travis-ci.org/translation/laravel)
+[![Software License](https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat-square)](LICENSE)
+[![Build Status](https://github.com/translation/laravel/actions/workflows/test.yml/badge.svg?branch=master)](https://github.com/translation/laravel/actions/workflows/test.yml)
 [![Test Coverage](https://api.codeclimate.com/v1/badges/552e1ddc3f3f604d4908/test_coverage)](https://codeclimate.com/github/translation/laravel/test_coverage)
 [![Maintainability](https://api.codeclimate.com/v1/badges/552e1ddc3f3f604d4908/maintainability)](https://codeclimate.com/github/translation/laravel/maintainability)
+[![Package Version](https://img.shields.io/packagist/v/tio/laravel?style=flat-square)](https://packagist.org/packages/tio/laravel)
+[![Downloads](https://img.shields.io/packagist/dt/tio/laravel.svg?style=flat-square)](https://packagist.org/packages/tio/laravel)
 
-Add this package to localize your Laravel application.
+Add this package to localize your **Laravel** application.
 
 Use the official Laravel syntax (with [PHP](#laravel-localization-php-keyvalues) or [JSON](#laravel-localization-json-source-text) files),
 or use the [GetText](#gettext) syntax.
@@ -39,6 +41,9 @@ Table of contents
  * [Change the current locale](#change-the-current-locale)
    * [Globally](#globally)
    * [Locally](#locally)
+ * [Frontend Localization](#frontend-localization)
+   * [Using this package](#using-this-package)
+   * [Using our official React & JavaScript package](#using-our-official-react--javascript-package)
  * [Advanced Configuration Options](#advanced-configuration-options)
    * [Ignored PHP keys](#ignored-php-keys)
  * [Testing](#testing)
@@ -46,7 +51,7 @@ Table of contents
  * [List of clients for Translation.io](#list-of-clients-for-translationio)
    * [Ruby on Rails (Ruby)](#ruby-on-rails-ruby)
    * [Laravel (PHP)](#laravel-php)
-   * [React and React-Intl (JavaScript)](#react-and-react-intl-javascript)
+   * [React, React Native and JavaScript](#react-react-native-and-javascript)
    * [Others](#others)
  * [License](#license)
 
@@ -70,7 +75,7 @@ trans_choice('inbox.message', $number);
 __('inbox.hello', ['name' => $user->name]);
 ```
 
-With the PHP file `resources/lang/en/inbox.php`:
+With the PHP file `lang/en/inbox.php`:
 
 ```php
 return [
@@ -83,14 +88,17 @@ return [
 ];
 ```
 
-Note that `trans` can also be used instead of `__`.
+Notes:
+
+ * `trans` can also be used instead of `__`.
+ * You can organize your PHP files with subfolders like `en/subfolder/inbox.php` using keys like `subfolder/inbox.title`.
 
 ### Laravel Localization (JSON source text)
 
-[A new feature](https://laravel.com/docs/5.6/localization#using-translation-strings-as-keys) of Laravel 5.4
+[A new feature](https://laravel.com/docs/5.4/localization#using-translation-strings-as-keys) of Laravel 5.4
 is the possibility to use `__` with the source text (and not only with keys like in the previous section).
 
-These translations are stored into JSON files located in the `resources/lang/` directory.
+These translations are stored into JSON files located in the `lang` directory.
 
 ```php
 // Regular
@@ -103,7 +111,7 @@ trans_choice(__('One message|Many messages'), $number);
 __('Hello :name', ['name' => $user->name]);
 ```
 
-With the JSON file `resources/lang/en.json`:
+With the JSON file `lang/en.json`:
 
 ```json
 {
@@ -113,19 +121,32 @@ With the JSON file `resources/lang/en.json`:
 }
 ```
 
-To spend less time dealing with multiple JSON files, we advise to only edit
-the original language (usually `en.json`) to add new strings, and leave the
-translations empty.
+Notes: 
 
-During a [sync](#sync), This package will automatically create and fill the JSON files
-of the target languages.
+ * To spend less time dealing with multiple JSON files, we advise to only edit
+the original language (usually `en.json`) to add new strings, and leave the
+translations empty. During a [sync](#sync), This package will automatically 
+create and fill the JSON files of the target languages.
+
+ * If you want to organize your JSON files by feature, you can register
+new paths in `AppServiceProvider` like this:
+
+```php
+public function boot()
+{
+    $loader = $this->app['translation.loader'];
+
+    // or 'lang/my_feature' in Laravel >= 9
+    $loader->addJsonPath(base_path('resources/lang/my_feature')); 
+}
+```
 
 ### GetText
 
 This package adds the GetText support to Laravel. We [strongly suggest](https://translation.io/blog/gettext-is-better-than-rails-i18n)
 that you use GetText to localize your application since it allows an easier and more complete syntax.
 
-Also, you won't need to create and manage any PHP or JSON file since your code will be
+Moreover, you won't need to create and manage any PHP or JSON file since your code will be
 automatically scanned for any string to translate.
 
 ```php
@@ -156,13 +177,6 @@ t(':city1 is bigger than :city2', [ ':city1' => 'NYC', ':city2' => 'BXL' ]);
 $ composer require tio/laravel
 ```
 
-If you are on a Laravel version lower than 5.5
-(or choose not to use package auto discovery) add this to service providers (`config/app.php`):
-
-```php
-\Tio\Laravel\ServiceProvider::class
-```
-
  2. Create a new translation project [from the UI](https://translation.io/laravel).
  3. Copy the initializer into your Laravel app (`config/translation.php`) or execute `php artisan vendor:publish`.
 
@@ -183,7 +197,7 @@ return [
 $ php artisan translation:init
 ```
 
-If you later need to add/remove target languages, please read our
+If you need to add or remove languages in the future, please read
 [this section](#add-or-remove-language) about that.
 
 ## Usage
@@ -216,7 +230,8 @@ $ php artisan translation:sync_and_purge
 
 As the name says, this operation will also perform a sync at the same time.
 
-Warning: all keys that are not present in the current branch will be **permanently deleted from Translation.io**.
+Warning: all keys that are not present in the current local branch
+will be **permanently deleted from Translation.io**.
 
 ## Manage Languages
 
@@ -235,7 +250,7 @@ To edit existing languages while keeping their translations (e.g. changing from 
 
  1. Create a new project on Translation.io with the correct languages.
  2. Adapt `config/translation.php` (new API key and languages)
- 3. Adapt directory language names in `resources/lang` (optional: adapt GetText `.po` headers)
+ 3. Adapt directory language names in `resources/lang` or `lang` (optional: adapt GetText `.po` headers)
  4. Execute `php artisan translation:init` and check that everything went fine.
  5. Invite your collaborators in the new project.
  6. Remove the old project.
@@ -305,6 +320,35 @@ use Tio\Laravel\Facade as Translation;
 Translation::setLocale('fr');
 ```
 
+## Frontend Localization
+
+### Using this Package
+
+This package is also able to cover frontend localization (React, Vue, ...).
+
+There are several ways to pass the translation strings from the backend
+to the frontend: JavaScript serialization, `data-` HTML attributes, JSON files etc.
+
+The easiest strategy when dealing with React/Vue would be to pass the corresponding
+translations as props when mounting the components.
+
+**Notes:**
+
+ * You can structure the i18n props with multiple levels of depth and pass the subtree as props to each of your sub-components.
+ * It also works great with server-side rendering of your components.
+
+### Using our official React & JavaScript package
+
+As Translation.io is directly integrated in the great
+[Lingui](https://lingui.js.org/) internationalization framework,
+you can also consider frontend localization as a completely different
+localization project.
+
+Please read more about this on:
+
+ * Website: [https://translation.io/lingui](https://translation.io/lingui)
+ * GitHub page: [https://github.com/translation/lingui](https://github.com/translation/lingui)
+
 ## Advanced Configuration Options
 
 The `config/translation.php` file can take several optional configuration options.
@@ -314,8 +358,8 @@ Some options are described below but for an exhaustive list, please refer to
 
 ### Ignored PHP keys
 
-If you would like to ignore some PHP keys or even entire PHP files or
-subdirectories, you can use the `ignored_key_prefixes` option.
+If you would like to ignore specific PHP keys, or even entire PHP files or
+subdirectories from the source language, you can use the `ignored_key_prefixes` option.
 
 For example:
 
@@ -377,12 +421,15 @@ Officially Supported on [https://translation.io/laravel](https://translation.io/
 
 Credits: [@armandsar](https://github.com/armandsar), [@michaelhoste](https://github.com/michaelhoste)
 
-### React and React-Intl (JavaScript)
+### React, React Native and JavaScript
 
- * GitHub: https://github.com/deecewan/translation-io
- * NPM: https://www.npmjs.com/package/translation-io
+Officially Supported on [https://translation.io/lingui](https://translation.io/lingui)
 
-Credits: [@deecewan](https://github.com/deecewan)
+Translation.io is directly integrated in the great
+[Lingui](https://lingui.js.org/) internationalization project.
+
+ * GitHub: https://github.com/translation/lingui
+ * NPM: https://www.npmjs.com/package/@translation/lingui
 
 ### Others
 

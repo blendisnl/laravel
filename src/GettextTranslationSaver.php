@@ -52,13 +52,29 @@ class GettextTranslationSaver
 
         // Save JSON files
         if (count($jsonTranslations) > 0) {
-            $jsonArray = [];
+            $translationsPerJsonPaths = [];
 
             foreach ($jsonTranslations as $jsonTranslation) {
-                $jsonArray[$jsonTranslation->getOriginal()] = $jsonTranslation->getTranslation();
+                if ($jsonTranslation->getContext() == $this->jsonStringContext()) {
+                    // Default JSON path
+                    $jsonPath = $this->application['path.lang'];
+                }
+                else {
+                    // Custom JSON path (added with `$loader->addJsonPath()`)
+                    $jsonPath = explode(']', explode('[', $jsonTranslation->getContext(), 2)[1])[0];
+                    $jsonPath = $this->application->basePath($jsonPath);
+                }
+
+                // Ignore empty translations (empty is like no string)
+                if (strlen($jsonTranslation->getTranslation()) > 0) {
+                    $translationsPerJsonPaths[$jsonPath][$jsonTranslation->getOriginal()] = $jsonTranslation->getTranslation();
+                }
             }
 
-            file_put_contents($this->jsonPath($locale), json_encode($jsonArray, JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES));
+            foreach ($translationsPerJsonPaths as $jsonPath => $translations) {
+                $jsonFile = $jsonPath . DIRECTORY_SEPARATOR . $locale . '.json';
+                file_put_contents($jsonFile, json_encode($translations, JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES));
+            }
         }
     }
 
@@ -83,7 +99,9 @@ class GettextTranslationSaver
 
         // only keep non-JSON translations
         foreach ($gettextTranslations as $key => $gettextTranslation) {
-            if ($gettextTranslation->getContext() == $this->jsonStringContext()) {
+            $context = $gettextTranslation->getContext();
+
+            if ($this->startsWith($context, $this->jsonStringContext())) {
                 $keysToRemove[] = $key;
             }
         }
@@ -101,7 +119,9 @@ class GettextTranslationSaver
 
         // only keep JSON translations
         foreach ($jsonTranslations as $key => $jsonTranslation) {
-            if ($jsonTranslation->getContext() != $this->jsonStringContext()) {
+            $context = $jsonTranslation->getContext();
+
+            if ( ! $this->startsWith($context, $this->jsonStringContext())) {
                 $keysToRemove[] = $key;
             }
         }
@@ -121,19 +141,12 @@ class GettextTranslationSaver
     private function gettextLocalesPath()
     {
         if (array_key_exists('gettext_locales_path', $this->config)) {
-            $gettextLocalesPath = $this->config['gettext_locales_path'];
+            return base_path($this->config['gettext_locales_path']);
         }
         else {
             // Default values if not present in config file
-            $gettextLocalesPath = 'resources/lang/gettext';
+            return $this->application['path.lang'] . DIRECTORY_SEPARATOR . 'gettext';
         }
-
-        return base_path($gettextLocalesPath);
-    }
-
-    private function jsonPath($locale)
-    {
-        return $this->application['path.lang'] . DIRECTORY_SEPARATOR . $locale . '.json';
     }
 
     private function tmpPath()
@@ -148,5 +161,11 @@ class GettextTranslationSaver
 
     private function jsonStringContext() {
         return 'Extracted from JSON file';
+    }
+
+    # Because "Str::starsWith()" is only Laravel 5.7+
+    # https://stackoverflow.com/a/7168986/1243212
+    function startsWith($haystack, $needle) {
+        return substr($haystack, 0, strlen($needle)) === $needle;
     }
 }

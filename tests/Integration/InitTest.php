@@ -8,6 +8,34 @@ use Tio\Laravel\Tests\TestCase;
 
 class InitTest extends TestCase
 {
+    public function testItWorksWithError()
+    {
+        // NOTE: we blocked gettext/languages to <=2.6.0 to be able to keep French with 2 plurals (fow now).
+        // It allows us to stay in sync with T.io while being compatible with previous PHP-VCR tests
+        // ---
+        // If one day gettext/languages is updated, please use another more stable language than French
+        // and edit the plural rules in the pre-recorded PHP-VCR YAML files so that both regular composer
+        // and `--prefer-lowest` pass
+        app()['config']->set('translation.target_locales', ['fr-BE']);
+        app()['config']->set('translation.key', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
+        app()['config']->set('translation.gettext_parse_paths', ['tests/fixtures/gettext']);
+
+        $this->addTranslationFixture('fr-BE', [], 'auth', [
+            'fields' => [
+                'first_name' => 'Prénom'
+            ]
+        ]);
+
+        $this->cassette('integration/init_with_bad_api_key.yml');
+
+        try {
+            $this->artisan('translation:init');
+        }
+        catch(\Throwable $e) {
+            $this->assertEquals("Could not find any *active* project with this API key.", $e->getMessage());
+        }
+    }
+
     public function testItWorks()
     {
         app()['config']->set('translation.target_locales', ['fr-BE', 'lv', 'ru']);
@@ -324,7 +352,14 @@ EOT;
         $this->cassette('integration/init_with_no_gettext.yml');
         $this->artisan('translation:init');
 
-        $this->assertDirectoryNotExists($this->gettextDir());
+        // => for PHPUnit >= 10
+        if(method_exists($this, 'assertDirectoryDoesNotExist')) {
+            $this->assertDirectoryDoesNotExist($this->gettextDir());
+        }
+        // => for PHPUnit < 10
+        else {
+            $this->assertDirectoryNotExists($this->gettextDir());
+        }
     }
 
     public function testItWorksWithIgnoredKeyPrefixes()
@@ -348,6 +383,13 @@ EOT;
         $this->cassette('integration/init_for_key_prefixes.yml');
         $this->artisan('translation:init');
 
-        $this->assertFileExists($this->localePath('fr/greetings.php'));
+        // => for PHPUnit >= 10
+        if(method_exists($this, 'assertDirectoryDoesNotExist')) {
+            $this->assertDirectoryDoesNotExist($this->localePath('fr/greetings.php'));
+        }
+        // => for PHPUnit < 10
+        else {
+            $this->assertDirectoryNotExists($this->localePath('fr/greetings.php'));
+        }
     }
 }
